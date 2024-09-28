@@ -6,42 +6,48 @@
 #include <cstring>
 #include <cassert>
 #include <string>
+#include <memory>
+#include <iostream>
+#include <algorithm>
 
-template<typename CharT,
-         typename Traits = std::char_traits<CharT>>
+template<typename CharT, typename Traits = std::char_traits<CharT>>
 class BasicCowString;
 
 using CowString = BasicCowString<char>;
-using WcowString = BasicCowString<wchar_t>;
+using WCowString = BasicCowString<wchar_t>;
 
 template<typename CharT>
 struct StringBuffer {
-    std::size_t size {0};
+    std::size_t length {0};
     std::size_t capacity {0};
     std::size_t useCount {0};
 
-    CharT* data {nullptr};
+    std::unique_ptr<CharT []> data;
 };
 
 /// Non-thread-safe copy-on-write string
-template<typename CharT,
-         typename Traits>
+template<typename CharT, typename Traits>
 class BasicCowString {
 public:
     BasicCowString() = default;
     
-    // data must be null-terminated string
-    BasicCowString(const char *data)
+    BasicCowString(const CharT *rawString)
     {
-        if (data == nullptr) {
+        if (rawString == nullptr) {
             return;
         }
 
-        buffer_ = new StringBuffer<CharT>;
-        buffer_->size = std::strlen(data);
+        std::size_t length = Traits::length(rawString);
+        std::size_t capacity = 1 + std::max(length * LENGTH_2_CAPACITY_MULTIPLIER, length + 1);
 
-        std::memcpy(buffer_->data, data, (buffer_->size) * sizeof(char));
+        auto bufferData = std::make_unique<CharT []>(capacity);
+        std::memcpy(bufferData.get(), rawString, (length + 1) * sizeof(CharT));
+
+        buffer_ = new StringBuffer<CharT>;
+        buffer_->length = length;
+        buffer_->capacity = capacity;
         buffer_->useCount = 1;
+        buffer_->data = std::move(bufferData);
     }
 
     BasicCowString(const BasicCowString &rhs) :
@@ -85,29 +91,54 @@ public:
         return *this;
     }
 
-    const uint8_t *Data() const
+    const CharT *Data() const
     {
-        return buffer_->data;
+        return buffer_->data.get();
     }
 
-    // uint8_t &operator[](std::size_t idx)
-    // {
-    //     if (buffer_->useCount_ > 1) {
-    //         *this = 
-    //     }
-    // }
+    std::size_t Length() const
+    {
+        return buffer_->length;
+    }
+
+    CharT &operator[](std::size_t idx)
+    {
+        if (buffer_->useCount > 1) {
+            std::cout << "im here" << std::endl;
+            buffer_->useCount--;
+            *this = Clone();
+        }
+        return buffer_->data[idx];
+    }
 
 private:
     void DeleteBuffer(StringBuffer<CharT> *buffer)
     {
+        buffer->useCount--;
         if (buffer->useCount == 0) {
-            delete buffer_;
-        } else {
-            buffer->useCount--;
+            delete buffer_;       
         }
     }
 
+    BasicCowString Clone()
+    {
+        BasicCowString clone;
+
+        clone.buffer_ = new StringBuffer<CharT>;
+        clone.buffer_->length = buffer_->length;
+        clone.buffer_->capacity = buffer_->capacity;
+        clone.buffer_->useCount = 1;
+
+        auto cloneData = std::make_unique<CharT []>(buffer_->capacity);
+        std::memcpy(cloneData.get(), buffer_->data.get(), (buffer_->length + 1) * sizeof(CharT));
+        clone.buffer_->data = std::move(cloneData);
+
+        return clone;
+    }
+
 private:
+    static constexpr std::size_t LENGTH_2_CAPACITY_MULTIPLIER = 1.2;
+
     StringBuffer<CharT> *buffer_ {nullptr};
 };
 
