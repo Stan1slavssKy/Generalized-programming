@@ -195,9 +195,74 @@ TEST(CowStringTest, Substring)
 
 TEST(CowStringTest, Tokenization)
 {
-    CowString str("|first*second+third|apple&");
+    {
+        constexpr const std::size_t NMB_OF_TOKENS = 4;
+        CowString str("|first*second+third|apple&");
 
-    CowString::Tokenize(str, "|*+&");
+        auto tokens = CowString::Tokenize(str, "|*+&");
+        std::array<const char *, NMB_OF_TOKENS> expectedTokens = {"first", "second", "third", "apple"};
+
+        for (std::size_t idx = 0; idx < NMB_OF_TOKENS; ++idx) {
+            ASSERT_STREQ(tokens[idx].Data(), expectedTokens[idx]);
+        }
+    }
+    {
+        constexpr const std::size_t NMB_OF_TOKENS = 4;
+        CowString str("first*s*a*second");
+
+        auto tokens = CowString::Tokenize(str, "|*+&");
+        std::array<const char *, NMB_OF_TOKENS> expectedTokens = {"first", "s", "a", "second"};
+
+        for (std::size_t idx = 0; idx < NMB_OF_TOKENS; ++idx) {
+            ASSERT_STREQ(tokens[idx].Data(), expectedTokens[idx]);
+        }
+    }
+    {
+        CowString str("|s|");
+        ASSERT_STREQ(CowString::Tokenize(str, "|")[0].Data(), "s");
+
+        str = "|s";
+        ASSERT_STREQ(CowString::Tokenize(str, "|")[0].Data(), "s");
+
+        str = "s|";
+        ASSERT_STREQ(CowString::Tokenize(str, "|")[0].Data(), "s");
+    }
+}
+
+TEST(CowStringTest, TokenizationWString)
+{
+    {
+        constexpr const std::size_t NMB_OF_TOKENS = 4;
+        WCowString str(L"|first*second+third|apple&");
+
+        auto tokens = WCowString::Tokenize(str, L"|*+&");
+        std::array<const wchar_t *, NMB_OF_TOKENS> expectedTokens = {L"first", L"second", L"third", L"apple"};
+
+        for (std::size_t idx = 0; idx < NMB_OF_TOKENS; ++idx) {
+            ASSERT_STREQ(tokens[idx].Data(), expectedTokens[idx]);
+        }
+    }
+    {
+        constexpr const std::size_t NMB_OF_TOKENS = 4;
+        WCowString str(L"first*s*a*second");
+
+        auto tokens = WCowString::Tokenize(str, L"|*+&");
+        std::array<const wchar_t *, NMB_OF_TOKENS> expectedTokens = {L"first", L"s", L"a", L"second"};
+
+        for (std::size_t idx = 0; idx < NMB_OF_TOKENS; ++idx) {
+            ASSERT_STREQ(tokens[idx].Data(), expectedTokens[idx]);
+        }
+    }
+    {
+        WCowString str(L"|s|");
+        ASSERT_STREQ(WCowString::Tokenize(str, L"|")[0].Data(), L"s");
+
+        str = L"|s";
+        ASSERT_STREQ(WCowString::Tokenize(str, L"|")[0].Data(), L"s");
+
+        str = L"s|";
+        ASSERT_STREQ(WCowString::Tokenize(str, L"|")[0].Data(), L"s");
+    }
 }
 
 int main(int argc, char *argv[])

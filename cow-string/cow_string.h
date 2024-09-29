@@ -18,7 +18,7 @@ using CowString = BasicCowString<char>;
 using WCowString = BasicCowString<wchar_t>;
 
 template<typename CharT>
-struct StringBuffer {
+struct StringBuffer final {
     std::size_t length {0};
     std::size_t capacity {0};
     std::size_t useCount {0};
@@ -28,7 +28,7 @@ struct StringBuffer {
 
 /// Non-thread-safe copy-on-write string
 template<typename CharT, typename Traits>
-class BasicCowString {
+class BasicCowString final {
 public:    
     BasicCowString(const CharT *rawString)
     {
@@ -152,13 +152,12 @@ public:
         if (substrSize <= 0 || end > Length()) {
             return {};
         }
-        
+
         return BasicCowString(Data() + start, substrSize);
     }
 
     static std::vector<BasicCowString> Tokenize(BasicCowString string, const CharT *separators)
     {
-        (void) string;
         if (separators == nullptr) {
             return {};
         }
@@ -167,10 +166,33 @@ public:
         
         for (auto currSep = separators; *currSep != '\0'; ++currSep) {
             separatorsSet.insert(*currSep);
-            std::cout << *currSep << std::endl;
         }
-    
-        return {};
+
+        std::vector<std::size_t> separatorPositions;
+        for (std::size_t idx = 0; idx < string.Length(); ++idx) {
+            auto currSym = string.Data()[idx];
+            auto it = separatorsSet.find(currSym);
+            if (it != separatorsSet.end()) {
+                separatorPositions.push_back(idx);
+            }
+        }
+        separatorPositions.push_back(string.Length());
+
+        std::vector<BasicCowString> tokens;
+        std::size_t start = 0;
+        std::size_t end = 0;
+
+        for (std::size_t idx = 0; idx < separatorPositions.size(); ++idx) {
+            end = separatorPositions[idx];
+            if (end == start) {
+                start = end + 1;
+            } else {
+                tokens.emplace_back(string.Data() + start, end - start);
+                start = end + 1;
+            }
+        }
+
+        return tokens;
     }
 
 public:
