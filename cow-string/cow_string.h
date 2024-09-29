@@ -28,9 +28,7 @@ struct StringBuffer {
 /// Non-thread-safe copy-on-write string
 template<typename CharT, typename Traits>
 class BasicCowString {
-public:
-    BasicCowString() = default;
-    
+public:    
     BasicCowString(const CharT *rawString)
     {
         if (rawString == nullptr) {
@@ -56,7 +54,7 @@ public:
         buffer_->useCount++;
     }
   
-    BasicCowString(BasicCowString &&rhs) noexcept :
+    BasicCowString(BasicCowString &&rhs) :
         buffer_(rhs.buffer_)
     {
         rhs.buffer_ = nullptr;
@@ -64,31 +62,43 @@ public:
 
     ~BasicCowString()
     {
-        DeleteBuffer(buffer_);
+        DeleteBufferIfNeeded(buffer_);
     }
 
     BasicCowString &operator=(const BasicCowString &rhs)
     {
-        if (&rhs != this) {
-            DeleteBuffer(buffer_);
-
-            buffer_ = rhs.buffer_;
-            buffer_->useCount++;
+        if (&rhs == this) {
+            return *this;
         }
+
+        DeleteBufferIfNeeded(buffer_);
+
+        buffer_ = rhs.buffer_;
+        buffer_->useCount++;
 
         return *this;
     }
 
-    BasicCowString &operator=(BasicCowString &&rhs) noexcept
+    BasicCowString &operator=(BasicCowString &&rhs)
     {
         if (&rhs == this) {
-            DeleteBuffer(buffer_);
-
-            buffer_ = rhs.buffer_;
-            rhs.buffer_ = nullptr;
+            return *this;
         }
 
+        DeleteBufferIfNeeded(buffer_);
+
+        buffer_ = rhs.buffer_;
+        rhs.buffer_ = nullptr;
+
         return *this;
+    }
+
+    CharT &operator[](std::size_t idx)
+    {
+        if (buffer_->useCount > 1) {
+            *this = Clone();
+        }
+        return buffer_->data[idx];
     }
 
     const CharT *Data() const
@@ -101,26 +111,22 @@ public:
         return buffer_->length;
     }
 
-    CharT &operator[](std::size_t idx)
-    {
-        if (buffer_->useCount > 1) {
-            std::cout << "im here" << std::endl;
-            buffer_->useCount--;
-            *this = Clone();
-        }
-        return buffer_->data[idx];
-    }
-
 private:
-    void DeleteBuffer(StringBuffer<CharT> *buffer)
+    BasicCowString() = default;
+
+    void DeleteBufferIfNeeded(StringBuffer<CharT> *buffer) const
     {
+        if (buffer == nullptr) {
+            return;
+        }
+
         buffer->useCount--;
         if (buffer->useCount == 0) {
             delete buffer_;       
         }
     }
 
-    BasicCowString Clone()
+    BasicCowString Clone() const
     {
         BasicCowString clone;
 
