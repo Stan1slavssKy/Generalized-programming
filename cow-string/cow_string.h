@@ -9,6 +9,7 @@
 #include <memory>
 #include <iostream>
 #include <algorithm>
+#include <unordered_set>
 
 template<typename CharT, typename Traits = std::char_traits<CharT>>
 class BasicCowString;
@@ -37,12 +38,31 @@ public:
 
         std::size_t length = Traits::length(rawString);
         std::size_t capacity = 1 + std::max(length * LENGTH_2_CAPACITY_MULTIPLIER, length + 1);
-
+        
         auto bufferData = std::make_unique<CharT []>(capacity);
         std::memcpy(bufferData.get(), rawString, (length + 1) * sizeof(CharT));
 
         buffer_ = new StringBuffer<CharT>;
         buffer_->length = length;
+        buffer_->capacity = capacity;
+        buffer_->useCount = 1;
+        buffer_->data = std::move(bufferData);
+    }
+
+    BasicCowString(const CharT *rawString, std::size_t count)
+    {
+        if (rawString == nullptr || count == 0) {
+            return;
+        }
+
+        std::size_t capacity = 1 + std::max(count * LENGTH_2_CAPACITY_MULTIPLIER, count + 1);
+        
+        auto bufferData = std::make_unique<CharT []>(capacity);
+        std::memcpy(bufferData.get(), rawString, (count + 1) * sizeof(CharT));
+        bufferData[count] = '\0';
+
+        buffer_ = new StringBuffer<CharT>;
+        buffer_->length = count;
         buffer_->capacity = capacity;
         buffer_->useCount = 1;
         buffer_->data = std::move(bufferData);
@@ -110,6 +130,51 @@ public:
     {
         return buffer_->length;
     }
+
+    std::size_t FindFirstOf(CharT ch, std::size_t start = 0) const
+    {
+        if (start >= Length()) {
+            return npos;
+        }
+
+        for (std::size_t pos = start; pos < Length(); ++pos) {
+            if (buffer_->data[pos] == ch) {
+                return pos;
+            }
+        }
+
+        return npos;
+    }
+
+    BasicCowString Substring(std::size_t start, std::size_t end) const
+    {
+        std::size_t substrSize = end - start;
+        if (substrSize <= 0 || end > Length()) {
+            return {};
+        }
+        
+        return BasicCowString(Data() + start, substrSize);
+    }
+
+    static std::vector<BasicCowString> Tokenize(BasicCowString string, const CharT *separators)
+    {
+        (void) string;
+        if (separators == nullptr) {
+            return {};
+        }
+
+        std::unordered_set<CharT> separatorsSet;
+        
+        for (auto currSep = separators; *currSep != '\0'; ++currSep) {
+            separatorsSet.insert(*currSep);
+            std::cout << *currSep << std::endl;
+        }
+    
+        return {};
+    }
+
+public:
+    static constexpr const std::size_t npos = -1;
 
 private:
     BasicCowString() = default;

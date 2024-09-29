@@ -141,6 +141,65 @@ TEST(CowStringTest, SubscriptOperator)
     }
 }
 
+TEST(CowStringTest, FindFirstOf)
+{
+    {
+        CowString str("Hello, world!");
+
+        auto pos = str.FindFirstOf(',');
+        ASSERT_EQ(pos, 5);
+
+        pos = str.FindFirstOf(',', 20);
+        ASSERT_EQ(pos, CowString::npos);
+
+        pos = str.FindFirstOf('l');
+        ASSERT_EQ(pos, 2);
+        pos = str.FindFirstOf('l', 3);
+        ASSERT_EQ(pos, 3);
+    }
+    {
+        WCowString str(L"Hello, world!");
+
+        auto pos = str.FindFirstOf(L',');
+        ASSERT_EQ(pos, 5);
+
+        pos = str.FindFirstOf(L',', 20);
+        ASSERT_EQ(pos, WCowString::npos);
+
+        pos = str.FindFirstOf(L'l');
+        ASSERT_EQ(pos, 2);
+        pos = str.FindFirstOf(L'l', 3);
+        ASSERT_EQ(pos, 3);
+    }
+}
+
+TEST(CowStringTest, Substring)
+{
+    {
+        CowString str("Hello, world!");
+        auto start = str.FindFirstOf(' ') + 1;
+        auto end = str.FindFirstOf('!');
+
+        CowString str2 = str.Substring(start, end);
+        ASSERT_STREQ(str2.Data(), "world");
+    }
+    {
+        WCowString str(L"Hello, world!");
+        auto start = str.FindFirstOf(L' ') + 1;
+        auto end = str.FindFirstOf(L'!');
+
+        WCowString str2 = str.Substring(start, end);
+        ASSERT_STREQ(str2.Data(), L"world");
+    }
+}
+
+TEST(CowStringTest, Tokenization)
+{
+    CowString str("|first*second+third|apple&");
+
+    CowString::Tokenize(str, "|*+&");
+}
+
 int main(int argc, char *argv[])
 {
     testing::InitGoogleTest(&argc, argv);
