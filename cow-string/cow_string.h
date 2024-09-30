@@ -7,8 +7,6 @@
 #include <cassert>
 #include <string>
 #include <memory>
-#include <iostream>
-#include <algorithm>
 #include <unordered_set>
 
 template <typename CharT, typename Traits = std::char_traits<CharT>>
@@ -43,10 +41,7 @@ public:
         std::memcpy(bufferData.get(), rawString, (length + 1) * sizeof(CharT));
 
         buffer_ = new StringBuffer<CharT>;
-        buffer_->length = length;
-        buffer_->capacity = capacity;
-        buffer_->useCount = 1;
-        buffer_->data = std::move(bufferData);
+        FillBuffer(buffer_, length, capacity, 1, std::move(bufferData));
     }
 
     BasicCowString(const CharT *rawString, std::size_t count)
@@ -62,10 +57,7 @@ public:
         bufferData[count] = '\0';
 
         buffer_ = new StringBuffer<CharT>;
-        buffer_->length = count;
-        buffer_->capacity = capacity;
-        buffer_->useCount = 1;
-        buffer_->data = std::move(bufferData);
+        FillBuffer(buffer_, count, capacity, 1, std::move(bufferData));
     }
 
     BasicCowString(const BasicCowString &rhs) : buffer_(rhs.buffer_)
@@ -191,8 +183,6 @@ public:
         return tokens;
     }
 
-    /// @brief Finds the first substring equal to the given character sequence.
-    /// @return Position of the first character of the found substring or NPOS if no such substring is found.
     std::size_t Find(const CharT *substrToFind, std::size_t startPos = 0) const
     {
         auto length = Traits::length(substrToFind);
@@ -239,18 +229,24 @@ private:
         }
     }
 
+    static void FillBuffer(StringBuffer<CharT> *buffer, std::size_t length, std::size_t capacity, std::size_t useCount,
+                           std::unique_ptr<CharT[]> data)
+    {
+        buffer->length = length;
+        buffer->capacity = capacity;
+        buffer->useCount = useCount;
+        buffer->data = std::move(data);
+    }
+
     BasicCowString Clone() const
     {
         BasicCowString clone;
 
-        clone.buffer_ = new StringBuffer<CharT>;
-        clone.buffer_->length = buffer_->length;
-        clone.buffer_->capacity = buffer_->capacity;
-        clone.buffer_->useCount = 1;
-
         auto cloneData = std::make_unique<CharT[]>(buffer_->capacity);
         std::memcpy(cloneData.get(), buffer_->data.get(), (buffer_->length + 1) * sizeof(CharT));
-        clone.buffer_->data = std::move(cloneData);
+
+        clone.buffer_ = new StringBuffer<CharT>;
+        FillBuffer(clone.buffer_, buffer_->length, buffer_->capacity, 1, std::move(cloneData));
 
         return clone;
     }
