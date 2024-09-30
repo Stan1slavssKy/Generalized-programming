@@ -2,13 +2,6 @@
 
 #include "cow_string.h"
 
-TEST(CowStringTest, RawStringConstructor)
-{
-    CowString str("Hello");
-
-    WCowString str2 (L"Hello");
-}
-
 TEST(CowStringTest, CopyConstructor)
 {
     {
@@ -150,7 +143,7 @@ TEST(CowStringTest, FindFirstOf)
         ASSERT_EQ(pos, 5);
 
         pos = str.FindFirstOf(',', 20);
-        ASSERT_EQ(pos, CowString::npos);
+        ASSERT_EQ(pos, CowString::NPOS);
 
         pos = str.FindFirstOf('l');
         ASSERT_EQ(pos, 2);
@@ -164,7 +157,7 @@ TEST(CowStringTest, FindFirstOf)
         ASSERT_EQ(pos, 5);
 
         pos = str.FindFirstOf(L',', 20);
-        ASSERT_EQ(pos, WCowString::npos);
+        ASSERT_EQ(pos, WCowString::NPOS);
 
         pos = str.FindFirstOf(L'l');
         ASSERT_EQ(pos, 2);
@@ -262,6 +255,91 @@ TEST(CowStringTest, TokenizationWString)
 
         str = L"s|";
         ASSERT_STREQ(WCowString::Tokenize(str, L"|")[0].Data(), L"s");
+
+        str = L"|||||||s";
+        ASSERT_STREQ(WCowString::Tokenize(str, L"|")[0].Data(), L"s");
+    }
+}
+
+TEST(CowStringTest, FindSubstring)
+{
+    const char *quote =
+        "There are only two kinds of languages: the ones people complain about and the ones nobody uses.";
+    CowString str(quote);
+    std::string stdStr(quote);
+
+    {
+        auto pos = str.Find("kinds");
+        auto expectedPos = stdStr.find("kinds");
+
+        ASSERT_NE(pos, CowString::NPOS);
+        ASSERT_NE(expectedPos, std::string::npos);
+        ASSERT_EQ(pos, expectedPos);
+    }
+    {
+        ASSERT_EQ(str.Find("error"), CowString::NPOS);
+        ASSERT_EQ(str.Find("x"), CowString::NPOS);
+        ASSERT_EQ(str.Find(""), CowString::NPOS);
+    }
+    {
+        auto pos = str.Find("the");
+        auto expectedPos = stdStr.find("the");
+        ASSERT_EQ(pos, expectedPos);
+
+        pos = str.Find("the", pos + 1);
+        expectedPos = stdStr.find("the", expectedPos + 1);
+        ASSERT_EQ(pos, expectedPos);
+    }
+    {
+        auto pos = str.Find(quote);
+        auto expectedPos = stdStr.find(quote);
+        ASSERT_EQ(pos, expectedPos);
+    }
+    {
+        auto pos = str.Find("kinds of languages:");
+        auto expectedPos = stdStr.find("kinds of languages:");
+        ASSERT_EQ(pos, expectedPos);
+    }
+}
+
+TEST(CowStringTest, FindSubstringWString)
+{
+    const wchar_t *quote =
+        L"There are only two kinds of languages: the ones people complain about and the ones nobody uses.";
+    WCowString str(quote);
+    std::wstring stdStr(quote);
+
+    {
+        auto pos = str.Find(L"kinds");
+        auto expectedPos = stdStr.find(L"kinds");
+
+        ASSERT_NE(pos, WCowString::NPOS);
+        ASSERT_NE(expectedPos, std::wstring::npos);
+        ASSERT_EQ(pos, expectedPos);
+    }
+    {
+        ASSERT_EQ(str.Find(L"error"), WCowString::NPOS);
+        ASSERT_EQ(str.Find(L"x"), WCowString::NPOS);
+        ASSERT_EQ(str.Find(L""), WCowString::NPOS);
+    }
+    {
+        auto pos = str.Find(L"the");
+        auto expectedPos = stdStr.find(L"the");
+        ASSERT_EQ(pos, expectedPos);
+
+        pos = str.Find(L"the", pos + 1);
+        expectedPos = stdStr.find(L"the", expectedPos + 1);
+        ASSERT_EQ(pos, expectedPos);
+    }
+    {
+        auto pos = str.Find(quote);
+        auto expectedPos = stdStr.find(quote);
+        ASSERT_EQ(pos, expectedPos);
+    }
+    {
+        auto pos = str.Find(L"kinds of languages:");
+        auto expectedPos = stdStr.find(L"kinds of languages:");
+        ASSERT_EQ(pos, expectedPos);
     }
 }
 

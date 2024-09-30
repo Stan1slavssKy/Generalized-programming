@@ -11,25 +11,25 @@
 #include <algorithm>
 #include <unordered_set>
 
-template<typename CharT, typename Traits = std::char_traits<CharT>>
+template <typename CharT, typename Traits = std::char_traits<CharT>>
 class BasicCowString;
 
 using CowString = BasicCowString<char>;
 using WCowString = BasicCowString<wchar_t>;
 
-template<typename CharT>
+template <typename CharT>
 struct StringBuffer final {
     std::size_t length {0};
     std::size_t capacity {0};
     std::size_t useCount {0};
 
-    std::unique_ptr<CharT []> data;
+    std::unique_ptr<CharT[]> data;
 };
 
 /// Non-thread-safe copy-on-write string
-template<typename CharT, typename Traits>
+template <typename CharT, typename Traits>
 class BasicCowString final {
-public:    
+public:
     BasicCowString(const CharT *rawString)
     {
         if (rawString == nullptr) {
@@ -38,8 +38,8 @@ public:
 
         std::size_t length = Traits::length(rawString);
         std::size_t capacity = 1 + std::max(length * LENGTH_2_CAPACITY_MULTIPLIER, length + 1);
-        
-        auto bufferData = std::make_unique<CharT []>(capacity);
+
+        auto bufferData = std::make_unique<CharT[]>(capacity);
         std::memcpy(bufferData.get(), rawString, (length + 1) * sizeof(CharT));
 
         buffer_ = new StringBuffer<CharT>;
@@ -56,8 +56,8 @@ public:
         }
 
         std::size_t capacity = 1 + std::max(count * LENGTH_2_CAPACITY_MULTIPLIER, count + 1);
-        
-        auto bufferData = std::make_unique<CharT []>(capacity);
+
+        auto bufferData = std::make_unique<CharT[]>(capacity);
         std::memcpy(bufferData.get(), rawString, (count + 1) * sizeof(CharT));
         bufferData[count] = '\0';
 
@@ -68,14 +68,12 @@ public:
         buffer_->data = std::move(bufferData);
     }
 
-    BasicCowString(const BasicCowString &rhs) :
-        buffer_(rhs.buffer_)
+    BasicCowString(const BasicCowString &rhs) : buffer_(rhs.buffer_)
     {
         buffer_->useCount++;
     }
-  
-    BasicCowString(BasicCowString &&rhs) :
-        buffer_(rhs.buffer_)
+
+    BasicCowString(BasicCowString &&rhs) : buffer_(rhs.buffer_)
     {
         rhs.buffer_ = nullptr;
     }
@@ -134,16 +132,16 @@ public:
     std::size_t FindFirstOf(CharT ch, std::size_t start = 0) const
     {
         if (start >= Length()) {
-            return npos;
+            return NPOS;
         }
 
         for (std::size_t pos = start; pos < Length(); ++pos) {
-            if (buffer_->data[pos] == ch) {
+            if (Traits::eq(buffer_->data[pos], ch)) {
                 return pos;
             }
         }
 
-        return npos;
+        return NPOS;
     }
 
     BasicCowString Substring(std::size_t start, std::size_t end) const
@@ -163,7 +161,7 @@ public:
         }
 
         std::unordered_set<CharT> separatorsSet;
-        
+
         for (auto currSep = separators; *currSep != '\0'; ++currSep) {
             separatorsSet.insert(*currSep);
         }
@@ -184,19 +182,47 @@ public:
 
         for (std::size_t idx = 0; idx < separatorPositions.size(); ++idx) {
             end = separatorPositions[idx];
-            if (end == start) {
-                start = end + 1;
-            } else {
+            if (end != start) {
                 tokens.emplace_back(string.Data() + start, end - start);
-                start = end + 1;
             }
+            start = end + 1;
         }
 
         return tokens;
     }
 
+    /// @brief Finds the first substring equal to the given character sequence.
+    /// @return Position of the first character of the found substring or NPOS if no such substring is found.
+    std::size_t Find(const CharT *substrToFind, std::size_t startPos = 0) const
+    {
+        auto length = Traits::length(substrToFind);
+        if (substrToFind == nullptr || length == 0) {
+            return NPOS;
+        }
+
+        std::size_t start = FindFirstOf(substrToFind[0], startPos);
+        if (start == NPOS) {
+            return NPOS;
+        }
+
+        for (std::size_t currMatchIdx = 0; currMatchIdx < length; ++currMatchIdx) {
+            if (start + currMatchIdx >= Length()) {
+                return NPOS;
+            }
+            if (!Traits::eq(substrToFind[currMatchIdx], Data()[start + currMatchIdx])) {
+                start = FindFirstOf(substrToFind[0], start + 1);
+                if (start == NPOS) {
+                    return NPOS;
+                }
+                currMatchIdx = 0;
+            }
+        }
+
+        return start;
+    }
+
 public:
-    static constexpr const std::size_t npos = -1;
+    static constexpr const std::size_t NPOS = -1;
 
 private:
     BasicCowString() = default;
@@ -209,7 +235,7 @@ private:
 
         buffer->useCount--;
         if (buffer->useCount == 0) {
-            delete buffer_;       
+            delete buffer_;
         }
     }
 
@@ -222,7 +248,7 @@ private:
         clone.buffer_->capacity = buffer_->capacity;
         clone.buffer_->useCount = 1;
 
-        auto cloneData = std::make_unique<CharT []>(buffer_->capacity);
+        auto cloneData = std::make_unique<CharT[]>(buffer_->capacity);
         std::memcpy(cloneData.get(), buffer_->data.get(), (buffer_->length + 1) * sizeof(CharT));
         clone.buffer_->data = std::move(cloneData);
 
